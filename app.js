@@ -1,27 +1,38 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const words=['apple','rocket','guitar','pizza','castle','penguin','rainbow','camera','banana','turtle'];
-let round=0, word=words[0], time=60, color='#25272c', size=5, score=120, drawing=false, guessed=false, timerId, botTimers=[];
-const canvas=$('#board'), ctx=canvas.getContext('2d');
-let strokes=[], current=[];
-const players=[['Ava','A','#6e9efa','drawing'],['You','Y','#f58d70','guesser'],['Leo','L','#51bd91',''],['Mia','M','#b889df',''],['Noah','N','#f1bd55',''],['Zoe','Z','#ef7182','']];
-function renderPlayers(){ $('#players').innerHTML=players.map((p,i)=>`<div class="player ${p[3]==='drawing'?'drawing':''}"><div class="player-avatar" style="background:${p[2]}">${p[1]}</div><div class="player-info"><div class="player-name">${p[0]}</div><div class="player-state">${i===0?'Drawing':p[3]?'Guessed':'Thinking...'}</div></div><div class="player-score" data-score="${p[0]}">${i===0?840:i===1?120:(i===2?620:i===3?510:i===4?430:280)}</div></div>`).join('')}
-renderPlayers();
-function resize(){const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=r.width*dpr;canvas.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#fff';ctx.fillRect(0,0,r.width,r.height);redraw()}
-function redraw(){const r=canvas.getBoundingClientRect();ctx.fillStyle='#fff';ctx.fillRect(0,0,r.width,r.height);ctx.lineCap='round';ctx.lineJoin='round';for(const s of strokes){if(s.points.length<2)continue;ctx.strokeStyle=s.color;ctx.lineWidth=s.size;ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);ctx.stroke()} }
-function point(e){const r=canvas.getBoundingRect?.();const rect=canvas.getBoundingClientRect();return{x:e.clientX-rect.left,y:e.clientY-rect.top}}
-canvas.addEventListener('pointerdown',e=>{if(guessed)return;canvas.setPointerCapture(e.pointerId);drawing=true;current=[point(e)];strokes.push({color,size,points:current});});
-canvas.addEventListener('pointermove',e=>{if(!drawing)return;const p=point(e);current.push(p);const s=strokes[strokes.length-1];ctx.strokeStyle=s.color;ctx.lineWidth=s.size;ctx.lineCap='round';ctx.lineJoin='round';if(s.points.length>1){let i=s.points.length-2;ctx.beginPath();ctx.moveTo(s.points[i].x,s.points[i].y);ctx.lineTo(p.x,p.y);ctx.stroke()} });
-canvas.addEventListener('pointerup',()=>drawing=false);canvas.addEventListener('pointercancel',()=>drawing=false);
-function blanks(){return word.split('').map((ch,i)=>i===0||i===word.length-1?ch:'_').join(' ') }
-function startRound(){guessed=false;clearInterval(timerId);botTimers.forEach(clearTimeout);botTimers=[];time=60;$('#roundLabel').textContent=`Round ${round+1}`;word=words[round%words.length];$('#wordBlanks').textContent=blanks();$('#timerNum').textContent=time;$('#roundResult').className='round-result';$('#messages').innerHTML='<div class="system-msg">Ava is drawing! <b>Can you guess it?</b></div>';strokes=[];resize();timerId=setInterval(()=>{time--;$('#timerNum').textContent=time;if(time<=0)finish(false)},1000);scheduleBots(); }
-function addMessage(name,text,correct=false,initial='') {const el=document.createElement('div');el.className='message'+(correct?' correct':'');el.innerHTML=`<div class="message-avatar" style="background:${correct?'#65c878':('#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'))}">${initial||name[0]}</div><div><b>${name}</b><span>${text}</span></div>`;$('#messages').append(el);el.scrollIntoView({block:'end'})}
-function scheduleBots(){const guesses=['a fruit','cat','apple','rocket','car','something red'];let delay=9000;for(let i=0;i<4;i++){botTimers.push(setTimeout(()=>{if(!guessed)addMessage(['Leo','Mia','Noah','Zoe'][i],guesses[(i+round)%guesses.length],false,['L','M','N','Z'][i])},delay+i*6500))}}
-document.querySelector('#guessForm').onsubmit=e=>{e.preventDefault();const input=$('#guessInput'),guess=input.value.trim().toLower();if(!guess)return;addMessage('You',input.value,false,'Y');if(guess===word){finish(true)}else{input.value='';input.animate([{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'none'}],{duration:180})}};
-function finish(won){clearInterval(timerId);botTimers.forEach(clearTimeout);guessed=true;const gain=Math.max(20,Math.round(time*2));if(won){score+=gain;$('#resultEmoji').textContent='🎉';$('#resultTitle').textContent='You got it!';$('#resultCopy').innerHTML=`The word was <b>${word}</b> · +${gain} points`;addMessage('You',`Guessed ${word}!`,true,'Y')}else{$('#resultEmoji').textContent='⏰';$('#resultTitle').textContent='Time!';$('#resultCopy').innerHTML=`The word was <b>${word}</b>`}$('#roundResult').classList.add('show')}
-$('#nextRoundBtn').onclick=()=>{round=(round+1)%5;startRound()};
-$('#undoBtn').onclick=()=>{strokes.pop();redraw()};$('#clearBtn').onclick=()=>{strokes=[];redraw()};
+const canvas=$('#board'),ctx=canvas.getContext('2d');
+let token='',code='',state=null,color='#25272c',size=5,drawing=false,current=[],lastState='',pollId;
+
+function resize(){const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=r.width*dpr;canvas.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);redraw()}
+function redraw(){const r=canvas.getBoundingClientRect();ctx.fillStyle='#fff';ctx.fillRect(0,0,r.width,r.height);ctx.lineCap='round';ctx.lineJoin='round';if(state?.strokes)for(const s of state.strokes){if(!s.points||s.points.length<2)continue;ctx.strokeStyle=s.color;ctx.lineWidth=s.size;ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);ctx.stroke()} }
+function point(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+canvas.addEventListener('pointerdown',e=>{if(!canDraw())return;canvas.setPointerCapture(e.pointerId);drawing=true;current=[point(e)];api('/api/draw',{stroke:{color,size,points:current}})});
+canvas.addEventListener('pointermove',e=>{if(!drawing||!canDraw())return;const p=point(e);current.push(p);ctx.strokeStyle=color;ctx.lineWidth=size;ctx.beginPath();ctx.moveTo(current[current.length-2].x,current[current.length-2].y);ctx.lineTo(p.x,p.y);ctx.stroke();if(current.length%3===0)api('/api/draw',{stroke:{color,size,points:[...current]}})});
+canvas.addEventListener('pointerup',()=>{drawing=false;if(current.length){api('/api/draw',{stroke:{color,size,points:[...current]}})}});
+canvas.addEventListener('pointercancel',()=>drawing=false);
+function canDraw(){return state&&state.status==='playing'&&state.drawer?.id===state.me?.id}
+async function api(path,data={}){const isGet=path.includes('/api/state');const url=isGet?`${path}?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`:path;const r=await fetch(url,{method:isGet?'GET':'POST',headers:{'Content-Type':'application/json'},body:isGet?undefined:JSON.stringify({...data,code,token})});return r.json()}
+async function poll(){if(!token||!code)return;try{const old=state;state=await api('/api/state');render(old)}catch(e){}}
+function render(old){resize();$('#roundLabel').innerHTML=`${state.started?'Round '+state.round:'Lobby · '+state.code} <span>of 5</span>`;$('#avatarBtn').textContent=state.me?.host&&!state.started?'START':'YOU';$('#avatarBtn').title=state.me?.host&&!state.started?'Start game':'Your player';$('#playerCount').textContent=state.players.length;
+ $('#players').innerHTML=state.players.map(p=>{const drawing=state.drawer?.id===p.id;return `<div class="player ${drawing?'drawing':''}"><div class="player-avatar" style="background:${p.id===state.me?.id?'#f58d70':'#6e9efa'}">${p.name[0].toUpperCase()}</div><div class="player-info"><div class="player-name">${p.name}${p.id===state.me?.id?' (You)':''}</div><div class="player-state">${drawing?'Drawing':p.guessed?'Guessed':'Thinking...'}</div></div><div class="player-score">${p.score}</div></div>`}).join('');
+ $('#wordBlanks').textContent=state.word||'_ _ _ _ _';$('#timerNum').textContent=state.roundEnds?Math.max(0,Math.ceil((state.roundEnds-Date.now())/1000)):60;$('#guessCount').textContent=state.messages.filter(m=>!m.system&&!m.correct).length;
+ if(state.drawer){$('#turnBanner').innerHTML=`<div class="turn-avatar">${state.drawer.name[0].toUpperCase()}</div><div><small>${canDraw()?'You are drawing':'Now drawing'}</strong></div>`.replace('<strong>','<strong>').replace('</strong>','</strong>');$('#turnBanner').innerHTML=`<div class="turn-avatar">${state.drawer.name[0].toUpperCase()}</div><div><small>${canDraw()?'You are drawing':'Now drawing'}</small><strong>${canDraw()?'Draw the secret word':state.drawer.name+' is sketching...'}</strong></div>`}
+ const key=JSON.stringify(state.messages);if(key!==lastState){$('#messages').innerHTML=state.messages.map(m=>m.system?`<div class="system-msg"><b>${m.text}</b></div>`:`<div class="message ${m.correct?'correct':''}"><div class="message-avatar">${m.name[0].toUpperCase()}</div><div><b>${m.name}</b><span>${m.text}</span></div></div>`).join('');lastState=key;}
+ redraw();
+ if(state.status==='roundEnd'||state.status==='ended')showResult(state.status==='ended');
+ else $('#roundResult').classList.remove('show');
+}
+function showResult(final){$('#roundResult').classList.add('show');$('#resultEmoji').textContent=final?'🏆':'⏰';$('#resultTitle').textContent=final?'Game complete!':'Time!';$('#resultCopy').innerHTML=final?'The highest score wins!':`The word was <b>${state.word}</b>`;const b=$('#nextRoundBtn');b.textContent=state.me?.host?(final?'Play again':'Next round'):'Waiting for host';b.disabled=!state.me?.host}
+$('#nextRoundBtn').onclick=()=>api('/api/next');
+async function enterLobby(create){const name=$('#nameInput').value.trim().slice(0,16)||'Player';const res=await fetch('/api/'+(create?'create':'join'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(create?{name}:{name,code:$('#codeInput').value.toUpperCase()})}).then(r=>r.json());if(res.error){$('#lobbyStatus').textContent=res.error;return}token=res.token;code=res.code;$('#lobbyStatus').textContent=`Room code: ${code}`;$('#lobbyModal').classList.remove('show');clearInterval(pollId);pollId=setInterval(poll,700);poll()}
+$('#createBtn').onclick=()=>enterLobby(true);$('#joinBtn').onclick=()=>enterLobby(false);
+$('#guessForm').onsubmit=async e=>{e.preventDefault();const i=$('#guessInput'),text=i.value.trim();if(!text)return;await api('/api/guess',{text});i.value='';poll()};
+$('#undoBtn').onclick=()=>api('/api/undo');$('#clearBtn').onclick=()=>api('/api/clear');
 $$('#colors .swatch').forEach(b=>b.onclick=()=>{$$('#colors .swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');color=b.dataset.color});
 $$('#sizes .size').forEach(b=>b.onclick=()=>{$$('#sizes .size').forEach(x=>x.classList.remove('active'));b.classList.add('active');size=+b.dataset.size});
 $('#helpBtn').onclick=()=>$('#helpModal').classList.add('show');$('#closeHelp').onclick=()=>$('#helpModal').classList.remove('show');$('#playBtn').onclick=()=>$('#helpModal').classList.remove('show');
 let sound=true;$('#soundBtn').onclick=()=>{sound=!sound;$('#soundBtn').textContent=sound?'🔊':'🔇'};
-window.addEventListener('resize',resize);setTimeout(()=>{resize();startRound()},50);
+window.addEventListener('resize',resize);
+
+// Host can start from the lobby using the room code shown in the round title by clicking avatar.
+$('#avatarBtn').onclick=async()=>{if(!token)return;if(state?.started)return;$('#lobbyStatus').textContent='Starting game...';await api('/api/start')};
+setInterval(()=>{if(state?.roundEnds&&state.status==='playing')$('#timerNum').textContent=Math.max(0,Math.ceil((state.roundEnds-Date.now())/1000))},300);
