@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Scribble — Guess the Word</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22%237366ee%22/><text x=%2232%22 y=%2247%22 text-anchor=%22middle%22 font-size=%2242%22 font-family=%22Georgia%22 fill=%22white%22>S</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><div class="brand-mark">S</div><span>Scribble</span></div>
+    <div class="round-pill"><b id="roundLabel">Round 1</b><span>of 5</span></div>
+    <div class="header-actions">
+      <button class="icon-btn" id="soundBtn" title="Sound">🔊</button>
+      <button class="icon-btn" id="helpBtn" title="How to play">?</button>
+      <button class="avatar" id="avatarBtn">YOU</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="scoreboard">
+      <div class="panel-title"><span>Players</span><b id="playerCount">6</b></div>
+      <div id="players"></div>
+    </aside>
+
+    <section class="game">
+      <div class="game-status">
+        <div class="word-wrap">
+          <span class="status-label">Guess this word</span>
+          <div class="word" id="wordBlanks">_ _ _ _ _</div>
+        </div>
+        <div class="timer" id="timer"><span id="timerNum">60</span><small>seconds</small></div>
+      </div>
+
+      <div class="canvas-shell">
+        <canvas id="board"></canvas>
+        <div class="turn-banner" id="turnBanner"><div class="turn-avatar">A</div><div><small>Now drawing</small><strong>Ava is sketching...</strong></div></div>
+        <div class="round-result" id="roundResult"><div class="result-card"><span id="resultEmoji">🎉</span><h2 id="resultTitle">You got it!</h2><p id="resultCopy">The word was <b>apple</b></p><button id="nextRoundBtn">Next round</button></div></div>
+      </div>
+
+      <div class="tools">
+        <div class="tool-group colors" id="colors">
+          <button class="swatch active" data-color="#25272c" style="--c:#25272c" aria-label="Black"></button>
+          <button class="swatch" data-color="#ef5f66" style="--c:#ef5f66" aria-label="Red"></button>
+          <button class="swatch" data-color="#f7b84b" style="--c:#f7b84b" aria-label="Orange"></button>
+          <button class="swatch" data-color="#69c96d" style="--c:#69c96d" aria-label="Green"></button>
+          <button class="swatch" data-color="#5b92f3" style="--c:#5b92f3" aria-label="Blue"></button>
+          <button class="swatch" data-color="#aa70df" style="--c:#aa70df" aria-label="Purple"></button>
+        </div>
+        <div class="divider"></div>
+        <div class="tool-group sizes" id="sizes">
+          <button class="size active" data-size="5"><i style="width:5px;height:5px"></i></button>
+          <button class="size" data-size="9"><i style="width:9px;height:9px"></i></button>
+          <button class="size" data-size="14"><i style="width:14px;height:14px"></i></button>
+        </div>
+        <div class="tool-spacer"></div>
+        <button class="tool-btn" id="undoBtn" title="Undo">↶</button>
+        <button class="tool-btn" id="clearBtn" title="Clear">⌫</button>
+      </div>
+    </section>
+
+    <aside class="chat">
+      <div class="panel-title"><span>Guesses</span><b id="guessCount">0</b></div>
+      <div class="messages" id="messages">
+        <div class="system-msg">Ava is drawing! <b>Can you guess it?</b></div>
+      </div>
+      <form class="guess-form" id="guessForm">
+        <input id="guessInput" autocomplete="off" maxlength="24" placeholder="Type your guess..." aria-label="Your guess">
+        <button type="submit" aria-label="Send guess">➤</button>
+      </form>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="helpModal"><div class="modal-card"><button class="modal-close" id="closeHelp">×</button><div class="modal-icon">✏️</div><h2>How to play</h2><p>Take turns drawing a secret word. Everyone else types guesses as fast as they can!</p><div class="tips"><div><b>1</b><span><strong>Watch & guess</strong><small>Be the first to guess correctly.</small></span></div><div><b>2</b><span><strong>Earn points</strong><small>Faster guesses earn more points.</small></span></div><div><b>3</b><span><strong>Draw clearly</strong><small>Use colors and tools to sketch.</small></span></div></div><button class="primary-btn" id="playBtn">Let's play</button></div></div>
+<script src="app.js"></script>
+</body>
+</html>
